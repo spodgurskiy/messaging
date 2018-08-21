@@ -16,10 +16,12 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
+/**
+ * Reply channel per producer
+ */
 @Service
 public class Producer {
     private static final Logger logger = LoggerFactory.getLogger(Producer.class);
@@ -27,7 +29,7 @@ public class Producer {
     private final AmazonSQSAsync amazonSQSAsync;
     private final QueueMessagingTemplate messagingTemplate;
     private final ObjectMapper objectMapper;
-    private Set<String> requests = Collections.synchronizedSet(new HashSet<>());
+    private Map<String, java.util.function.Consumer<Map>> requests = Collections.synchronizedMap(new HashMap<>());
     private String hostname;
 
     @Autowired
@@ -39,9 +41,9 @@ public class Producer {
     }
 
     @Scheduled(cron = "* * * * * *")
-    public void schedulerProducer() throws JsonProcessingException {
+    public void produceMessage() throws JsonProcessingException {
         String messageId = "" + System.currentTimeMillis();
-        requests.add(messageId);
+        requests.put(messageId, this::replyConsumer);
         messagingTemplate.send(REQUEST_QUEUE, new GenericMessage<>(objectMapper.writeValueAsString(
                 new Message(messageId, "reply_" + hostname)))
         );
@@ -52,12 +54,16 @@ public class Producer {
     public void replyListener(String message) throws IOException {
         Map<String, Object> data = objectMapper.readValue(message, Map.class);
         String id = (String) data.get("messageId");
-        if (!requests.contains(id)) {
+        if (!requests.containsKey(id)) {
             logger.warn("Received unknown reply {}", data);
         } else {
+            requests.get(id).accept(data);
             requests.remove(id);
-            logger.info("Received reply {}", id);
         }
+    }
+
+    private void replyConsumer(Map data) {
+        logger.info("Received reply {}", data);
     }
 
     @PostConstruct
