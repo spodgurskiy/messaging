@@ -1,7 +1,6 @@
 package com.design.messaging;
 
 import com.amazonaws.services.sqs.AmazonSQSAsync;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.aws.messaging.config.QueueMessageHandlerFactory;
@@ -37,10 +36,6 @@ public class MessagingApplication {
     }
 
     public static void main(String[] args) {
-        try {
-            SpringApplication.run(MessagingApplication.class, args);
-        } catch (Throwable t) {
-            t.printStackTrace();
-        }
+        SpringApplication.run(MessagingApplication.class, args);
     }
 }

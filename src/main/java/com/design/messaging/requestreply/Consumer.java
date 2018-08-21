@@ -27,7 +27,6 @@ public class Consumer {
     @SqsListener(value = REQUEST_QUEUE)
     public void sqsWorker(String message) throws IOException {
         Map<String, Object> map = objectMapper.readValue(message, Map.class);
-
         messagingTemplate.send(
                 (String) map.get("replyTo"),
                 new GenericMessage<>(objectMapper.writeValueAsString(new ReplyMessage((String) map.get("messageId"), "SUCCESS")))
