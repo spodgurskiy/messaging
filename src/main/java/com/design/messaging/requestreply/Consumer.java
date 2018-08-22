@@ -1,53 +1,40 @@
 package com.design.messaging.requestreply;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.cloud.aws.messaging.core.QueueMessagingTemplate;
 import org.springframework.cloud.aws.messaging.listener.annotation.SqsListener;
+import org.springframework.messaging.MessageHeaders;
+import org.springframework.messaging.handler.annotation.Headers;
 import org.springframework.messaging.support.GenericMessage;
 import org.springframework.stereotype.Service;
 
-import java.io.IOException;
+import java.util.Collections;
 import java.util.Map;
 
 import static com.design.messaging.requestreply.Producer.REQUEST_QUEUE;
 
 @Service
 public class Consumer {
-    private final ObjectMapper objectMapper;
+    private static final Logger logger = LoggerFactory.getLogger(Consumer.class);
     private final QueueMessagingTemplate messagingTemplate;
 
     @Autowired
-    public Consumer(ObjectMapper objectMapper, QueueMessagingTemplate messagingTemplate) {
-        this.objectMapper = objectMapper;
+    public Consumer(QueueMessagingTemplate messagingTemplate) {
         this.messagingTemplate = messagingTemplate;
     }
 
-    @SuppressWarnings("unchecked")
     @SqsListener(value = REQUEST_QUEUE)
-    public void sqsWorker(String message) throws IOException {
-        Map<String, Object> map = objectMapper.readValue(message, Map.class);
-        messagingTemplate.send(
-                (String) map.get("replyTo"),
-                new GenericMessage<>(objectMapper.writeValueAsString(new ReplyMessage((String) map.get("messageId"), "SUCCESS")))
-        );
-    }
+    public void sqsWorker(@Headers Map<String, String> headers) {
+        logger.info("Processing message: {}", headers.get("uid"));
+        String replyTo = headers.get(MessageHeaders.REPLY_CHANNEL);
 
-    private class ReplyMessage {
-        private String messageId;
-        private String reply;
-
-        ReplyMessage(String messageId, String reply) {
-            this.messageId = messageId;
-            this.reply = reply;
-        }
-
-        public String getMessageId() {
-            return messageId;
-        }
-
-        public String getReply() {
-            return reply;
+        if (replyTo == null) {
+            logger.info("Message processed");
+        } else {
+            GenericMessage<String> message = new GenericMessage<>("REPLY", new MessageHeaders(Collections.singletonMap("uid", headers.get("uid"))));
+            messagingTemplate.send(replyTo, message);
         }
     }
 }
