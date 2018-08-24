@@ -1,6 +1,7 @@
 package com.design.messaging.reply;
 
 import com.amazonaws.services.sqs.AmazonSQSAsync;
+import com.design.messaging.eip.RequestReplyFlow;
 import io.reactivex.Observable;
 import io.reactivex.subjects.PublishSubject;
 import org.slf4j.Logger;
@@ -8,6 +9,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.aws.messaging.listener.annotation.SqsListener;
+import org.springframework.integration.annotation.ServiceActivator;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.annotation.Headers;
 import org.springframework.messaging.handler.annotation.Payload;
@@ -35,6 +37,7 @@ public class ReplyMessageDispatcherImpl implements ReplyMessageDispatcher {
     }
 
     @SqsListener("reply_${messaging.workerId}")
+    @ServiceActivator(inputChannel = RequestReplyFlow.REPLY_CHANNEL)
     public void replyListener(@Headers Map<String, Object> headers, @Payload String message) {
         String uid = (String) headers.get("uid");
         logger.info("Received reply {}", uid);
